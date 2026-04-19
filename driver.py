@@ -5,8 +5,9 @@ import random
 
 
 class LGDriver:
-    def __init__(self, dll_path, click_time):
+    def __init__(self, dll_path, click_time, smooth_speed=None):
         self.click_time = click_time
+        self.smooth_speed = smooth_speed
         self.lg_driver = ctypes.CDLL(dll_path)
         self.ok = self.lg_driver.device_open() == 1
         if not self.ok:
@@ -63,8 +64,13 @@ class LGDriver:
             return
         if x == 0 and y == 0:
             return
+        speed_multiplier = self.smooth_speed.get() if self.smooth_speed is not None else 1.0
+        speed_multiplier = max(speed_multiplier, 0.1)
+        scaled_min_steps = max(1, int(round(min_steps / speed_multiplier)))
+        scaled_max_steps = max(scaled_min_steps, int(round(max_steps / speed_multiplier)))
+        scaled_scale_factor = max(scale_factor * speed_multiplier, 0.5)
         distance = math.sqrt(x ** 2 + y ** 2)
-        steps = int(min(max(distance / scale_factor, min_steps), max_steps))
+        steps = int(min(max(distance / scaled_scale_factor, scaled_min_steps), scaled_max_steps))
         error_x = 0.0
         error_y = 0.0
         step_x_float = x / steps

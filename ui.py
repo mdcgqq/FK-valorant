@@ -34,8 +34,8 @@ MODIFIER_KEYSYMS = {"Shift_L", "Shift_R", "Control_L", "Control_R", "Alt_L", "Al
 
 
 def create_control_panel(root, sleep_time_var, click_time, display_var,
-                         threshold, scale, size, tk_window, config):
-    root.geometry("280x280+10+25")
+                         threshold, scale, size, smooth_speed, tk_window, config):
+    root.geometry("280x320+10+25")
     root.overrideredirect(True)
     root.attributes("-topmost", True)
     root.attributes("-alpha", 0.5)
@@ -52,6 +52,7 @@ def create_control_panel(root, sleep_time_var, click_time, display_var,
         ("识别精度:", threshold),
         ("瞄准范围:", size),
         ("窗口大小:", scale),
+        ("平滑速度:", smooth_speed),
     ]
 
     for i, (text, var) in enumerate(labels):
@@ -71,12 +72,13 @@ def create_control_panel(root, sleep_time_var, click_time, display_var,
     create_buttons(2, threshold, 0.1, 1.0, 0.1, 1)
     create_buttons(3, size, 10, 200, 10, 0)
     create_buttons(4, scale, 0.1, 1.0, 0.1, 1)
+    create_buttons(5, smooth_speed, 0.2, 3.0, 0.1, 1)
 
     def toggle_display():
         display_var.set(not display_var.get())
         tk_window.withdraw() if not display_var.get() else tk_window.deiconify()
 
-    btn_row = 5
+    btn_row = 6
     tk.Button(frame, text="显示/隐藏", command=toggle_display,
               **button_config).grid(row=btn_row, column=0, columnspan=2, padx=2, pady=5)
 

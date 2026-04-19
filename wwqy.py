@@ -1,13 +1,18 @@
 import os
 import time
 import tkinter as tk
-from mss import mss
-import cv2
 
-from config import load_config, save_config, check_keybinding, DEFAULT_CONFIG
+import win32api
+from mss import mss
+
+from config import DEFAULT_CONFIG, check_keybinding, load_config, save_config
 from detection import (
-    initialize_model_and_driver, get_screen_center,
-    capture_screen, detect_enemy, perform_action, perform_action_body,
+    capture_screen,
+    detect_enemy,
+    get_screen_center,
+    initialize_model_and_driver,
+    perform_action,
+    perform_action_body,
 )
 from ui import create_control_panel, create_tk_window, display_image_with_detections
 
@@ -24,6 +29,7 @@ def main():
     threshold = tk.DoubleVar(value=config.get("threshold", DEFAULT_CONFIG["threshold"]))
     scale = tk.DoubleVar(value=config.get("scale", DEFAULT_CONFIG["scale"]))
     size = tk.DoubleVar(value=config.get("size", DEFAULT_CONFIG["size"]))
+    smooth_speed = tk.DoubleVar(value=config.get("smooth_speed", DEFAULT_CONFIG["smooth_speed"]))
 
     def update_config(*args):
         config["sleep_time"] = sleep_time_var.get()
@@ -32,26 +38,32 @@ def main():
         config["threshold"] = threshold.get()
         config["scale"] = scale.get()
         config["size"] = size.get()
+        config["smooth_speed"] = smooth_speed.get()
         save_config(config)
 
-    for var in (sleep_time_var, click_time, display_var, threshold, scale, size):
+    for var in (sleep_time_var, click_time, display_var, threshold, scale, size, smooth_speed):
         var.trace_add("write", update_config)
 
     tk_window = create_tk_window(root, scale)
     control_panel_visible = True
-    create_control_panel(root, sleep_time_var, click_time, display_var,
-                         threshold, scale, size, tk_window, config)
+    create_control_panel(
+        root,
+        sleep_time_var,
+        click_time,
+        display_var,
+        threshold,
+        scale,
+        size,
+        smooth_speed,
+        tk_window,
+        config,
+    )
 
-    model, driver = initialize_model_and_driver(click_time)
+    model, driver = initialize_model_and_driver(click_time, smooth_speed)
     if model is None or driver is None:
         print("模型或驱动加载失败，程序退出。")
         root.destroy()
         return
-
-    import win32api
-
-    def _capture_all_screen():
-        pass
 
     capture_x = 640
     capture_y = 640
@@ -87,25 +99,9 @@ def main():
             tk_window.geometry(f"{w}x{h}+10+280")
             previous_scale = current_scale
 
-        def _save_img(img):
-            # 1. 确保存放图片的目录存在
-            # exist_ok=True 表示如果目录已经存在，不会报错
-            os.makedirs("logs/imgs", exist_ok=True)
-            
-            # 2. 生成文件名
-            # 使用时间戳作为文件名，保证每次截图的文件名唯一，不会覆盖
-            # 格式例如: 1745073759.png
-            filename = f"logs/imgs/{int(time.time())}.png"
-            
-            # 3. 保存图像
-            # cv2.imwrite 可以直接保存 numpy 数组
-            cv2.imwrite(filename, img)
-            print(f"图片已保存: {filename}")
-
         if win32api.GetAsyncKeyState(VK_RBUTTON) < 0:
-            # print("[右键] 检测到按下，开始截图识别...")
             img = capture_screen(sct, capture_area)
-            _save_img(img)
+            # _save_img(img)
             head, body = detect_enemy(model, img, capture_x, capture_y, threshold.get())
             # print(f"[识别] head={bool(head)}, body={bool(body)}, auto_fire={auto_fire}")
             if head and len(head) > 2:

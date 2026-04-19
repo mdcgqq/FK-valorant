@@ -55,6 +55,7 @@ DEFAULT_CONFIG = {
     "threshold": 0.3,
     "scale": 0.5,
     "size": 60,
+    "smooth_speed": 1.0,
     "keybindings": {
         "toggle_panel": "VK_HOME",
         "exit": "VK_SHIFT+VK_ESCAPE",

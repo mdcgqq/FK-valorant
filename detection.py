@@ -3,7 +3,6 @@ import math
 import time
 import cv2
 import numpy as np
-from mss import mss
 from driver import LGDriver
 from ultralytics import YOLO
 
@@ -27,7 +26,7 @@ def _infer_imgsz_from_model_path(model_path, default_size=640):
     return int(stem) if stem.isdigit() else default_size
 
 
-def initialize_model_and_driver(click_time, retries=3, delay=5):
+def initialize_model_and_driver(click_time, smooth_speed=None, retries=3, delay=5):
     base_path = os.path.dirname(__file__)
     model_path = _resolve_model_path(base_path)
     model_imgsz = _infer_imgsz_from_model_path(model_path)
@@ -40,7 +39,7 @@ def initialize_model_and_driver(click_time, retries=3, delay=5):
             model = YOLO(model_path, task="detect")
             model.fk_imgsz = model_imgsz
             print(f"[模型] 已加载 yolo26 ONNX: {model_path} (imgsz={model_imgsz})")
-            driver = LGDriver(driver_path, click_time)
+            driver = LGDriver(driver_path, click_time, smooth_speed)
             return model, driver
         except Exception as e:
             print(f"模型或驱动加载失败 (尝试 {attempt + 1}/{retries}): {e}")
@@ -55,12 +54,43 @@ def initialize_model_and_driver(click_time, retries=3, delay=5):
 
 
 def get_screen_center(monitor):
-    return monitor['width'] // 2, monitor['height'] // 2
+    return (
+        monitor.get('left', 0) + monitor['width'] // 2,
+        monitor.get('top', 0) + monitor['height'] // 2,
+    )
 
 
 def capture_screen(sct, capture_area):
     screen_img = np.array(sct.grab(capture_area))
     return cv2.cvtColor(screen_img, cv2.COLOR_BGRA2BGR)
+
+
+def _clamp(value, min_value, max_value):
+    return max(min_value, min(value, max_value))
+
+
+def _calculate_smoothed_move(relative_x, relative_y, gain_x, gain_y, max_step, deadzone):
+    if abs(relative_x) <= deadzone:
+        move_x = 0
+    else:
+        move_x = int(round(_clamp(relative_x * gain_x, -max_step, max_step)))
+        if move_x == 0:
+            move_x = 1 if relative_x > 0 else -1
+
+    if abs(relative_y) <= deadzone:
+        move_y = 0
+    else:
+        move_y = int(round(_clamp(relative_y * gain_y, -max_step, max_step)))
+        if move_y == 0:
+            move_y = 1 if relative_y > 0 else -1
+
+    return move_x, move_y
+
+
+def _trigger_shot(driver, sleep_time, auto_fire):
+    if auto_fire:
+        driver.click()
+        time.sleep(sleep_time)
 
 
 def detect_enemy(model, img, capture_x, capture_y, confidence_threshold):
@@ -101,24 +131,36 @@ def detect_enemy(model, img, capture_x, capture_y, confidence_threshold):
 
 
 def perform_action(driver, relative_x, relative_y, sleep_time, size, head_xyxy, auto_fire=True):
+    x1, y1, x2, y2 = head_xyxy
+    head_width = x2 - x1
+    head_height = y2 - y1
+    delta_size = max(size * (head_width / 13), 20)
+    center_window_x = max(head_width / 2, 3)
+    center_window_y = max(head_height / 2, 3)
     abs_x = abs(relative_x)
     abs_y = abs(relative_y)
-    x1, y1, x2, y2 = head_xyxy
-    xx = x2 - x1
-    delta_size = size * (xx / 13)
-    m_x = abs((x2 - x1) / 2)
-    m_y = abs((y2 - y1) / 2)
 
-    if abs_x < m_x and abs_y < m_y:
-        if auto_fire:
-            driver.click()
-            time.sleep(sleep_time)
-    else:
-        if abs_x <= delta_size and abs_y <= delta_size:
-            driver.move(relative_x, relative_y)
-            if auto_fire:
-                driver.click()
-                time.sleep(sleep_time)
+    if abs_x < center_window_x and abs_y < center_window_y:
+        _trigger_shot(driver, sleep_time, auto_fire)
+        return
+
+    if abs_x <= delta_size and abs_y <= delta_size:
+        move_x, move_y = _calculate_smoothed_move(
+            relative_x,
+            relative_y,
+            gain_x=0.24,
+            gain_y=0.22,
+            max_step=30,
+            deadzone=3,
+        )
+        print(
+            f"[瞄头判定] abs_x={abs_x:.1f} abs_y={abs_y:.1f} "
+            f"delta_size={delta_size:.1f} move_x={move_x} move_y={move_y}"
+        )
+        if move_x != 0 or move_y != 0:
+            driver.smooth_move(move_x, move_y)
+        if abs_x <= center_window_x + 2 and abs_y <= center_window_y + 2:
+            _trigger_shot(driver, sleep_time, auto_fire)
 
 
 def perform_action_body(driver, relative_x, relative_y, sleep_time, size, body_xyxy, auto_fire=True):
@@ -128,12 +170,22 @@ def perform_action_body(driver, relative_x, relative_y, sleep_time, size, body_x
     relative_y -= delta_y * adjustment_factor
     abs_x = abs(relative_x)
     abs_y = abs(relative_y)
-    xx = x2 - x1
-    delta_size = size * (xx / 50)
-    print(f"[瞄身判定] abs_x={abs_x:.1f} abs_y={abs_y:.1f} delta_size={delta_size:.1f} in_range={abs_x <= delta_size and abs_y <= delta_size}")
+    body_width = x2 - x1
+    delta_size = max(size * (body_width / 50), 18)
+    in_range = abs_x <= delta_size and abs_y <= delta_size
+    print(f"[瞄身判定] abs_x={abs_x:.1f} abs_y={abs_y:.1f} delta_size={delta_size:.1f} in_range={in_range}")
 
-    if abs_x <= delta_size and abs_y <= delta_size:
-        driver.move(relative_x, relative_y)
-        if auto_fire:
-            driver.click()
-            time.sleep(sleep_time)
+    if in_range:
+        move_x, move_y = _calculate_smoothed_move(
+            relative_x,
+            relative_y,
+            gain_x=0.22,
+            gain_y=0.20,
+            max_step=28,
+            deadzone=4,
+        )
+        print(f"[瞄身移动] move_x={move_x} move_y={move_y}")
+        if move_x != 0 or move_y != 0:
+            driver.smooth_move(move_x, move_y)
+        if abs_x <= 6 and abs_y <= 6:
+            _trigger_shot(driver, sleep_time, auto_fire)
