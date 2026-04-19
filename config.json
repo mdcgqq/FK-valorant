@@ -1,14 +1,15 @@
 {
     "sleep_time": 0.01,
-    "click_time": 0.12,
-    "display": true,
+    "click_time": 0.01,
+    "display": false,
     "threshold": 0.2,
     "scale": 0.7,
-    "size": 60.0,
+    "size": 200.0,
     "keybindings": {
         "toggle_panel": "VK_HOME",
         "exit": "VK_SHIFT+VK_ESCAPE",
         "turbo_on": "VK_F6",
-        "turbo_off": "VK_F5"
+        "turbo_off": "VK_F5",
+        "toggle_fire": "VK_F7"
     }
 }

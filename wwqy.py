@@ -2,6 +2,7 @@ import os
 import time
 import tkinter as tk
 from mss import mss
+import cv2
 
 from config import load_config, save_config, check_keybinding, DEFAULT_CONFIG
 from detection import (
@@ -42,8 +43,15 @@ def main():
                          threshold, scale, size, tk_window, config)
 
     model, driver = initialize_model_and_driver(click_time)
+    if model is None or driver is None:
+        print("模型或驱动加载失败，程序退出。")
+        root.destroy()
+        return
 
     import win32api
+
+    def _capture_all_screen():
+        pass
 
     capture_x = 640
     capture_y = 640
@@ -79,13 +87,33 @@ def main():
             tk_window.geometry(f"{w}x{h}+10+280")
             previous_scale = current_scale
 
+        def _save_img(img):
+            # 1. 确保存放图片的目录存在
+            # exist_ok=True 表示如果目录已经存在，不会报错
+            os.makedirs("logs/imgs", exist_ok=True)
+            
+            # 2. 生成文件名
+            # 使用时间戳作为文件名，保证每次截图的文件名唯一，不会覆盖
+            # 格式例如: 1745073759.png
+            filename = f"logs/imgs/{int(time.time())}.png"
+            
+            # 3. 保存图像
+            # cv2.imwrite 可以直接保存 numpy 数组
+            cv2.imwrite(filename, img)
+            print(f"图片已保存: {filename}")
+
         if win32api.GetAsyncKeyState(VK_RBUTTON) < 0:
+            # print("[右键] 检测到按下，开始截图识别...")
             img = capture_screen(sct, capture_area)
+            _save_img(img)
             head, body = detect_enemy(model, img, capture_x, capture_y, threshold.get())
+            # print(f"[识别] head={bool(head)}, body={bool(body)}, auto_fire={auto_fire}")
             if head and len(head) > 2:
+                print(f"[动作] 瞄头 dx={head[0]:.1f} dy={head[1]:.1f}")
                 perform_action(driver, *head[:2], sleep_time_var.get(), size.get(), head[2], auto_fire)
                 continue
             if body and len(body) > 2:
+                print(f"[动作] 瞄身 dx={body[0]:.1f} dy={body[1]:.1f}")
                 perform_action_body(driver, *body[:2], sleep_time_var.get(), size.get(), body[2], auto_fire)
 
         kb = config.get("keybindings", {})
