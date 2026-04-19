@@ -58,6 +58,7 @@ def main():
     target_fps = 100
     frame_interval = 1.0 / target_fps
     fps_state = {'last_time': time.time(), 'count': 0}
+    auto_fire = True
 
     while True:
         loop_start = time.time()
@@ -82,10 +83,10 @@ def main():
             img = capture_screen(sct, capture_area)
             head, body = detect_enemy(model, img, capture_x, capture_y, threshold.get())
             if head and len(head) > 2:
-                perform_action(driver, *head[:2], sleep_time_var.get(), size.get(), head[2])
+                perform_action(driver, *head[:2], sleep_time_var.get(), size.get(), head[2], auto_fire)
                 continue
             if body and len(body) > 2:
-                perform_action_body(driver, *body[:2], sleep_time_var.get(), size.get(), body[2])
+                perform_action_body(driver, *body[:2], sleep_time_var.get(), size.get(), body[2], auto_fire)
 
         kb = config.get("keybindings", {})
 
@@ -96,6 +97,11 @@ def main():
         if check_keybinding(kb.get("turbo_off", "")):
             click_time.set(0.12)
             size.set(60)
+
+        if check_keybinding(kb.get("toggle_fire", "")):
+            auto_fire = not auto_fire
+            print(f"开火模式: {'开启' if auto_fire else '关闭（仅跟踪）'}")
+            time.sleep(0.2)
 
         if check_keybinding(kb.get("toggle_panel", "")):
             if control_panel_visible:

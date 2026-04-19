@@ -45,6 +45,7 @@ KEYBINDING_ACTIONS = {
     "exit": "退出程序",
     "turbo_on": "极速模式开",
     "turbo_off": "极速模式关",
+    "toggle_fire": "开火模式切换",
 }
 
 DEFAULT_CONFIG = {
@@ -59,6 +60,7 @@ DEFAULT_CONFIG = {
         "exit": "VK_SHIFT+VK_ESCAPE",
         "turbo_on": "VK_F6",
         "turbo_off": "VK_F5",
+        "toggle_fire": "VK_F7",
     }
 }
 

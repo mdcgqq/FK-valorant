@@ -70,7 +70,7 @@ def detect_enemy(model, img, capture_x, capture_y, confidence_threshold):
     return closest_enemy_head, closest_enemy
 
 
-def perform_action(driver, relative_x, relative_y, sleep_time, size, head_xyxy):
+def perform_action(driver, relative_x, relative_y, sleep_time, size, head_xyxy, auto_fire=True):
     abs_x = abs(relative_x)
     abs_y = abs(relative_y)
     x1, y1, x2, y2 = head_xyxy
@@ -80,16 +80,18 @@ def perform_action(driver, relative_x, relative_y, sleep_time, size, head_xyxy):
     m_y = abs((y2 - y1) / 2)
 
     if abs_x < m_x and abs_y < m_y:
-        driver.click()
-        time.sleep(sleep_time)
+        if auto_fire:
+            driver.click()
+            time.sleep(sleep_time)
     else:
         if abs_x <= delta_size and abs_y <= delta_size:
             driver.move(relative_x, relative_y)
-            driver.click()
-            time.sleep(sleep_time)
+            if auto_fire:
+                driver.click()
+                time.sleep(sleep_time)
 
 
-def perform_action_body(driver, relative_x, relative_y, sleep_time, size, body_xyxy):
+def perform_action_body(driver, relative_x, relative_y, sleep_time, size, body_xyxy, auto_fire=True):
     x1, y1, x2, y2 = body_xyxy
     delta_y = y2 - y1
     adjustment_factor = 0.34 + 0.1 * (1 - math.exp(-0.01 * (delta_y - 50)))
@@ -101,5 +103,6 @@ def perform_action_body(driver, relative_x, relative_y, sleep_time, size, body_x
 
     if abs_x <= delta_size and abs_y <= delta_size:
         driver.move(relative_x, relative_y)
-        driver.click()
-        time.sleep(sleep_time)
+        if auto_fire:
+            driver.click()
+            time.sleep(sleep_time)
