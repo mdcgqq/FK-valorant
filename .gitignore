@@ -140,3 +140,5 @@ cython_debug/
 wwqy.spec
 wwqy.ico
 logs/
+runs/
+yolov5-master/

@@ -7,10 +7,30 @@ from mss import mss
 from driver import LGDriver
 from ultralytics import YOLO
 
+
+def _resolve_model_path(base_path):
+    env_model_path = os.getenv("MODEL_PATH", "").strip()
+    if env_model_path:
+        return env_model_path
+
+    model_size = os.getenv("MODEL_SIZE", "640").strip()
+    candidate = os.path.join(base_path, "assests", "nms", f"{model_size}.onnx")
+    if os.path.exists(candidate):
+        return candidate
+
+    # Fallback to 640 as yolo26 default export
+    return os.path.join(base_path, "assests", "nms", "640.onnx")
+
+
+def _infer_imgsz_from_model_path(model_path, default_size=640):
+    stem = os.path.splitext(os.path.basename(model_path))[0]
+    return int(stem) if stem.isdigit() else default_size
+
+
 def initialize_model_and_driver(click_time, retries=3, delay=5):
     base_path = os.path.dirname(__file__)
-    default_model_path = os.path.join(base_path, "assests", "nms", "640.onnx")
-    model_path = os.getenv("MODEL_PATH", default_model_path)
+    model_path = _resolve_model_path(base_path)
+    model_imgsz = _infer_imgsz_from_model_path(model_path)
     driver_path = os.path.join(base_path, 'driver/logitech.driver.dll')
 
     for attempt in range(retries):
@@ -18,6 +38,8 @@ def initialize_model_and_driver(click_time, retries=3, delay=5):
             if not os.path.exists(model_path):
                 raise FileNotFoundError(f"模型文件不存在: {model_path}")
             model = YOLO(model_path, task="detect")
+            model.fk_imgsz = model_imgsz
+            print(f"[模型] 已加载 yolo26 ONNX: {model_path} (imgsz={model_imgsz})")
             driver = LGDriver(driver_path, click_time)
             return model, driver
         except Exception as e:
@@ -25,7 +47,7 @@ def initialize_model_and_driver(click_time, retries=3, delay=5):
             if "logitech.driver.dll" in str(e):
                 print("提示：请确保安装了 driver/lghub 目录中的驱动程序。")
             if "模型文件不存在" in str(e):
-                print("提示：默认读取 assests/nms/640.onnx，可用 MODEL_PATH 覆盖为其他 onnx。")
+                print("提示：默认读取 assests/nms/640.onnx，可用 MODEL_PATH 或 MODEL_SIZE 覆盖。")
             if attempt < retries - 1:
                 time.sleep(delay)
             else:
@@ -42,7 +64,8 @@ def capture_screen(sct, capture_area):
 
 
 def detect_enemy(model, img, capture_x, capture_y, confidence_threshold):
-    results = model.predict(img, imgsz=640, verbose=False)
+    infer_size = getattr(model, "fk_imgsz", 640)
+    results = model.predict(img, imgsz=infer_size, verbose=False)
     first = results[0]
     boxes = first.boxes
     xyxy = boxes.xyxy.cpu().numpy() if boxes is not None and boxes.xyxy is not None else np.empty((0, 4))
