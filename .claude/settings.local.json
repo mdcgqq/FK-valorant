@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(ls /c/Python* /c/Users/Administrator/AppData/Local/Programs/Python/)",
-      "Read(//c/Program Files/**)"
+      "Read(//c/Program Files/**)",
+      "WebFetch(domain:www.letanure.dev)",
+      "WebFetch(domain:claudecode.run)",
+      "WebFetch(domain:angelo-lima.fr)",
+      "WebSearch",
+      "WebFetch(domain:computingforgeeks.com)",
+      "WebFetch(domain:support.claude.com)"
     ]
   }
 }

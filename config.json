@@ -4,5 +4,11 @@
     "display": true,
     "threshold": 0.2,
     "scale": 0.7,
-    "size": 60.0
+    "size": 60.0,
+    "keybindings": {
+        "toggle_panel": "VK_HOME",
+        "exit": "VK_SHIFT+VK_ESCAPE",
+        "turbo_on": "VK_F6",
+        "turbo_off": "VK_F5"
+    }
 }
