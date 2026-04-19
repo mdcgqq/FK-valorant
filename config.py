@@ -51,7 +51,6 @@ KEYBINDING_ACTIONS = {
 DEFAULT_CONFIG = {
     "sleep_time": 0.1,
     "click_time": 0.12,
-    "display": False,
     "threshold": 0.3,
     "scale": 0.5,
     "size": 60,

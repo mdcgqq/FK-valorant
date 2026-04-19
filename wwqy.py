@@ -14,7 +14,7 @@ from detection import (
     perform_action,
     perform_action_body,
 )
-from ui import create_control_panel, create_tk_window, display_image_with_detections
+from ui import create_control_panel
 
 VK_RBUTTON = 0x02
 
@@ -25,7 +25,6 @@ def main():
 
     sleep_time_var = tk.DoubleVar(value=config.get("sleep_time", DEFAULT_CONFIG["sleep_time"]))
     click_time = tk.DoubleVar(value=config.get("click_time", DEFAULT_CONFIG["click_time"]))
-    display_var = tk.BooleanVar(value=config.get("display", DEFAULT_CONFIG["display"]))
     threshold = tk.DoubleVar(value=config.get("threshold", DEFAULT_CONFIG["threshold"]))
     scale = tk.DoubleVar(value=config.get("scale", DEFAULT_CONFIG["scale"]))
     size = tk.DoubleVar(value=config.get("size", DEFAULT_CONFIG["size"]))
@@ -34,28 +33,24 @@ def main():
     def update_config(*args):
         config["sleep_time"] = sleep_time_var.get()
         config["click_time"] = click_time.get()
-        config["display"] = display_var.get()
         config["threshold"] = threshold.get()
         config["scale"] = scale.get()
         config["size"] = size.get()
         config["smooth_speed"] = smooth_speed.get()
         save_config(config)
 
-    for var in (sleep_time_var, click_time, display_var, threshold, scale, size, smooth_speed):
+    for var in (sleep_time_var, click_time, threshold, scale, size, smooth_speed):
         var.trace_add("write", update_config)
 
-    tk_window = create_tk_window(root, scale)
     control_panel_visible = True
     create_control_panel(
         root,
         sleep_time_var,
         click_time,
-        display_var,
         threshold,
         scale,
         size,
         smooth_speed,
-        tk_window,
         config,
     )
 
@@ -82,33 +77,29 @@ def main():
 
     while True:
         loop_start = time.time()
+        head = []
+        body = []
 
         fps_state['count'] += 1
         if loop_start - fps_state['last_time'] >= 1.0:
             elapsed = loop_start - fps_state['last_time']
             fps = fps_state['count'] / elapsed if elapsed > 0 else 0
-            if tk_window and hasattr(tk_window, 'fps_label'):
-                tk_window.fps_label.config(text=f"FPS: {fps:.1f}")
             fps_state['count'] = 0
             fps_state['last_time'] = loop_start
 
         current_scale = scale.get()
         if current_scale != previous_scale:
-            w = int(640 * current_scale)
-            h = int(640 * current_scale)
-            tk_window.geometry(f"{w}x{h}+10+280")
             previous_scale = current_scale
 
-        if win32api.GetAsyncKeyState(VK_RBUTTON) < 0:
-            img = capture_screen(sct, capture_area)
-            # _save_img(img)
-            head, body = detect_enemy(model, img, capture_x, capture_y, threshold.get())
-            # print(f"[识别] head={bool(head)}, body={bool(body)}, auto_fire={auto_fire}")
+        is_aiming = win32api.GetAsyncKeyState(VK_RBUTTON) < 0
+        if is_aiming:
+            frame_img = capture_screen(sct, capture_area)
+            head, body = detect_enemy(model, frame_img, capture_x, capture_y, threshold.get())
+
             if head and len(head) > 2:
                 print(f"[动作] 瞄头 dx={head[0]:.1f} dy={head[1]:.1f}")
                 perform_action(driver, *head[:2], sleep_time_var.get(), size.get(), head[2], auto_fire)
-                continue
-            if body and len(body) > 2:
+            elif body and len(body) > 2:
                 print(f"[动作] 瞄身 dx={body[0]:.1f} dy={body[1]:.1f}")
                 perform_action_body(driver, *body[:2], sleep_time_var.get(), size.get(), body[2], auto_fire)
 
@@ -134,11 +125,6 @@ def main():
                 root.deiconify()
             control_panel_visible = not control_panel_visible
             time.sleep(0.2)
-
-        if display_var.get():
-            img = capture_screen(sct, capture_area)
-            head, body = detect_enemy(model, img, capture_x, capture_y, threshold.get())
-            display_image_with_detections(img, head, body, scale.get(), tk_window)
 
         if check_keybinding(kb.get("exit", "")):
             print("退出程序中...")

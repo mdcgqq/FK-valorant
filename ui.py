@@ -1,7 +1,6 @@
 import os
 import tkinter as tk
-import cv2
-from PIL import Image, ImageTk
+
 from config import (
     KEY_NAME_MAP, KEYBINDING_ACTIONS, get_display_name, save_config,
 )
@@ -33,8 +32,8 @@ _KEYSYM_TO_VK = {
 MODIFIER_KEYSYMS = {"Shift_L", "Shift_R", "Control_L", "Control_R", "Alt_L", "Alt_R"}
 
 
-def create_control_panel(root, sleep_time_var, click_time, display_var,
-                         threshold, scale, size, smooth_speed, tk_window, config):
+def create_control_panel(root, sleep_time_var, click_time,
+                         threshold, scale, size, smooth_speed, config):
     root.geometry("280x320+10+25")
     root.overrideredirect(True)
     root.attributes("-topmost", True)
@@ -74,13 +73,7 @@ def create_control_panel(root, sleep_time_var, click_time, display_var,
     create_buttons(4, scale, 0.1, 1.0, 0.1, 1)
     create_buttons(5, smooth_speed, 0.2, 3.0, 0.1, 1)
 
-    def toggle_display():
-        display_var.set(not display_var.get())
-        tk_window.withdraw() if not display_var.get() else tk_window.deiconify()
-
     btn_row = 6
-    tk.Button(frame, text="显示/隐藏", command=toggle_display,
-              **button_config).grid(row=btn_row, column=0, columnspan=2, padx=2, pady=5)
 
     def quit_app():
         root.destroy()
@@ -88,13 +81,13 @@ def create_control_panel(root, sleep_time_var, click_time, display_var,
 
     tk.Button(frame, text="退出", command=quit_app,
               bg="red", fg="white", font=("Arial", 12)
-              ).grid(row=btn_row, column=2, padx=2, pady=5)
+              ).grid(row=btn_row, column=0, columnspan=2, padx=2, pady=5)
 
     def open_keybinding_window():
         create_keybinding_window(root, config)
 
     tk.Button(frame, text="快捷键", command=open_keybinding_window,
-              **button_config).grid(row=btn_row, column=3, padx=2, pady=5)
+              **button_config).grid(row=btn_row, column=2, columnspan=2, padx=2, pady=5)
 
 
 def create_keybinding_window(root, config):
@@ -185,46 +178,3 @@ def create_keybinding_window(root, config):
     close_btn = tk.Button(frame, text="关闭", command=win.destroy,
                           bg="#555", fg="white", font=("Arial", 10))
     close_btn.grid(row=len(KEYBINDING_ACTIONS), column=0, columnspan=3, pady=8)
-
-
-def create_tk_window(root, scale):
-    width = int(640 * scale.get())
-    height = int(640 * scale.get())
-
-    tk_window = tk.Toplevel(root)
-    tk_window.overrideredirect(True)
-    tk_window.attributes("-topmost", True)
-    tk_window.geometry(f"{width}x{height}+10+280")
-    tk_window.attributes("-alpha", 1)
-    tk_window.withdraw()
-
-    tk_window.img_label = tk.Label(tk_window)
-    tk_window.img_label.pack(fill="both", expand=True)
-
-    tk_window.fps_label = tk.Label(tk_window, text="FPS: 0", fg="white", bg="black")
-    tk_window.fps_label.place(relx=0.1, rely=0.1, anchor=tk.CENTER)
-
-    return tk_window
-
-
-def display_image_with_detections(img, closest_enemy_head, closest_enemy, scale, tk_window):
-    if closest_enemy_head:
-        _, _, xyxy, conf = closest_enemy_head
-        x1, y1, x2, y2 = map(int, xyxy)
-        cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 255), 2)
-        cv2.putText(img, f"Enemy Head : {conf:0.3}", (x1, y1 - 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1, cv2.LINE_AA)
-
-    if closest_enemy:
-        _, _, xyxy, conf = closest_enemy
-        x1, y1, x2, y2 = map(int, xyxy)
-        cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 0), 2)
-        cv2.putText(img, f"Enemy : {conf:0.3}", (x1, y1 - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 1, cv2.LINE_AA)
-
-    height, width = img.shape[:2]
-    resized_img = cv2.resize(img, (int(width * scale), int(height * scale)))
-    image = Image.fromarray(cv2.cvtColor(resized_img, cv2.COLOR_BGR2RGB))
-    tk_img = ImageTk.PhotoImage(image)
-    tk_window.img_label.config(image=tk_img)
-    tk_window.img_label.image = tk_img
