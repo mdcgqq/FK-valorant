@@ -257,7 +257,13 @@ def create_control_panel(root, sleep_time_var, click_time, display_var, threshol
         display_var.set(not display_var.get())
         tk_window.withdraw() if not display_var.get() else tk_window.deiconify()
 
-    tk.Button(frame, text="显示/隐藏", command=toggle_display, **button_config).grid(row=5, column=1, columnspan=2, padx=5, pady=5)
+    tk.Button(frame, text="显示/隐藏", command=toggle_display, **button_config).grid(row=5, column=0, columnspan=2, padx=5, pady=5)
+
+    def quit_app():
+        root.destroy()
+        os._exit(0)
+
+    tk.Button(frame, text="退出", command=quit_app, bg="red", fg="white", font=("Arial", 12)).grid(row=5, column=2, columnspan=2, padx=5, pady=5)
 
 
 def create_tk_window(root, scale):

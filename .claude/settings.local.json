@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls /c/Python* /c/Users/Administrator/AppData/Local/Programs/Python/)",
+      "Read(//c/Program Files/**)"
+    ]
+  }
+}
